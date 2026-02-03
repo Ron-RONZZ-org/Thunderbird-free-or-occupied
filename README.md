@@ -62,8 +62,9 @@ The extension is built using the WebExtension API for Thunderbird. Key component
 
 ### Permissions
 
-The extension requires the following permission:
+The extension requires the following permissions:
 - `calendar`: To read calendar events from Thunderbird
+- `accountsRead`: To auto-detect your email address from Thunderbird accounts
 
 ## ICS Format
 
