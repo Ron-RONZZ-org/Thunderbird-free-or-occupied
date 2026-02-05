@@ -11,9 +11,18 @@
     }
   },
   "permissions": [
-    "calendar",
     "accountsRead"
   ],
+  "experiment_apis": {
+    "calendar": {
+      "schema": "experiments/calendar/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["calendar"]],
+        "script": "experiments/calendar/implementation.js"
+      }
+    }
+  },
   "background": {
     "scripts": ["background.js"]
   },

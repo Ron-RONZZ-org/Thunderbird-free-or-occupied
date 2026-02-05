@@ -18,6 +18,8 @@ A Thunderbird extension that generates FREE-BUSY ICS files from your calendar ev
 5. Navigate to this directory and select the `manifest.json` file, or create a ZIP file containing all files and select it
 6. The extension will be installed and activated
 
+**Note:** This extension uses experimental APIs to access calendar data. Experimental APIs are allowed in Thunderbird extensions and provide access to features not yet available in standard WebExtensions.
+
 ## Usage
 
 1. Click the **Free or Occupied** icon in the Thunderbird toolbar
@@ -44,6 +46,10 @@ This is useful for:
 ├── background.js       # Background script for ICS generation
 ├── popup.html          # User interface
 ├── popup.js            # UI logic
+├── experiments/        # Experimental APIs
+│   └── calendar/       # Calendar experiment
+│       ├── schema.json         # API schema
+│       └── implementation.js   # API implementation
 ├── icons/              # Extension icons
 │   ├── icon-16.png
 │   ├── icon-32.png
@@ -54,17 +60,24 @@ This is useful for:
 
 ## Development
 
-The extension is built using the WebExtension API for Thunderbird. Key components:
+The extension is built using the WebExtension API for Thunderbird with an experimental API for calendar access. Key components:
 
-- **manifest.json**: Defines the extension metadata and permissions
+- **manifest.json**: Defines the extension metadata, permissions, and experimental APIs
+- **experiments/calendar/**: Custom experiment API that interfaces with Thunderbird's calendar system
+  - **schema.json**: Defines the API functions available to the extension
+  - **implementation.js**: Implements calendar access using Thunderbird's internal APIs
 - **background.js**: Handles calendar data retrieval and ICS generation
 - **popup.html/js**: Provides the user interface for generating FREE-BUSY files
 
-### Permissions
+### Permissions and Experimental APIs
 
-The extension requires the following permissions:
-- `calendar`: To read calendar events from Thunderbird
+The extension requires the following permission:
 - `accountsRead`: To auto-detect your email address from Thunderbird accounts
+
+The extension uses an experimental API to access calendar data:
+- **calendar**: Custom experiment API that interfaces with Thunderbird's internal calendar system
+  - This is required because Thunderbird does not expose calendar access through standard WebExtension APIs
+  - The experiment is implemented in `experiments/calendar/` directory
 
 ## ICS Format
 

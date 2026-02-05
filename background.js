@@ -32,10 +32,15 @@ function generateFreeBusyICS(events, email) {
 }
 
 // Format date to ICS format (YYYYMMDDTHHMMSSZ)
-function formatICSDate(date) {
-  if (typeof date === 'string') {
-    date = new Date(date);
+function formatICSDate(dateString) {
+  // dateString is in iCalendar format (e.g., "20240203T140000Z")
+  // If it's already in the correct format, return it
+  if (typeof dateString === 'string' && /^\d{8}T\d{6}Z?$/.test(dateString)) {
+    return dateString.endsWith('Z') ? dateString : dateString + 'Z';
   }
+  
+  // Otherwise, parse and format
+  const date = new Date(dateString);
   return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
@@ -43,17 +48,8 @@ function formatICSDate(date) {
 browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.action === 'generateFreeBusy') {
     try {
-      // Get calendar events
-      const calendars = await browser.calendar.calendars.query({});
-      let allEvents = [];
-      
-      for (const calendar of calendars) {
-        const events = await browser.calendar.items.query({
-          calendarId: calendar.id,
-          type: 'event'
-        });
-        allEvents = allEvents.concat(events);
-      }
+      // Get all calendar events using our experimental API
+      const allEvents = await browser.calendar.getAllEvents();
       
       // Get user email (fallback to default)
       const email = message.email || 'user@example.com';
