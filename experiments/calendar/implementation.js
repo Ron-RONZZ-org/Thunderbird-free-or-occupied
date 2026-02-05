@@ -15,12 +15,21 @@ var calendar = class extends ExtensionCommon.ExtensionAPI {
     const getCalendarEvents = (calendar) => {
       const { start, end } = getDateRange();
       
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        const allEvents = [];
+        
         const listener = {
           onOperationComplete(aCalendar, aStatus, aOperationType, aId, aDetail) {
-            // Operation complete
+            // Operation complete - resolve with all collected events
+            if (Components.isSuccessCode(aStatus)) {
+              resolve(allEvents);
+            } else {
+              console.error("Calendar operation failed with status:", aStatus);
+              resolve([]); // Return empty array on error instead of rejecting
+            }
           },
           onGetResult(aCalendar, aStatus, aItemType, aDetail, aItems) {
+            // This can be called multiple times with batches of results
             if (Components.isSuccessCode(aStatus)) {
               const events = aItems.map(item => ({
                 id: item.id,
@@ -28,20 +37,23 @@ var calendar = class extends ExtensionCommon.ExtensionAPI {
                 startDate: item.startDate ? item.startDate.icalString : "",
                 endDate: item.endDate ? item.endDate.icalString : ""
               }));
-              resolve(events);
-            } else {
-              resolve([]);
+              allEvents.push(...events);
             }
           }
         };
 
-        calendar.getItems(
-          Ci.calICalendar.ITEM_FILTER_TYPE_EVENT,
-          0,
-          start,
-          end,
-          listener
-        );
+        try {
+          calendar.getItems(
+            Ci.calICalendar.ITEM_FILTER_TYPE_EVENT,
+            0,
+            start,
+            end,
+            listener
+          );
+        } catch (error) {
+          console.error("Error calling getItems:", error);
+          resolve([]); // Return empty array on error
+        }
       });
     };
 
@@ -83,11 +95,17 @@ var calendar = class extends ExtensionCommon.ExtensionAPI {
             const calManager = cal.getCalendarManager();
             const calendars = calManager.getCalendars();
             
+            if (!calendars || calendars.length === 0) {
+              console.log("No calendars found");
+              return [];
+            }
+            
             // Fetch events from all calendars concurrently
             const eventPromises = calendars.map(calendar => getCalendarEvents(calendar));
             const allEventsArrays = await Promise.all(eventPromises);
             const allEvents = allEventsArrays.flat();
             
+            console.log(`Retrieved ${allEvents.length} events from ${calendars.length} calendar(s)`);
             return allEvents;
           } catch (error) {
             console.error("Error getting all events:", error);

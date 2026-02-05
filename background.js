@@ -48,19 +48,34 @@ function formatICSDate(dateString) {
 browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.action === 'generateFreeBusy') {
     try {
+      console.log('Starting FREE-BUSY generation...');
+      
+      // Check if calendar API is available
+      if (!browser.calendar) {
+        throw new Error('Calendar API not available. Please ensure the extension is properly installed.');
+      }
+      
       // Get all calendar events using our experimental API
+      console.log('Fetching calendar events...');
       const allEvents = await browser.calendar.getAllEvents();
+      console.log(`Retrieved ${allEvents.length} events`);
       
       // Get user email (fallback to default)
       const email = message.email || 'user@example.com';
       
       // Generate ICS content
+      console.log('Generating ICS content...');
       const icsContent = generateFreeBusyICS(allEvents, email);
+      console.log('ICS content generated successfully');
       
       return { success: true, content: icsContent };
     } catch (error) {
       console.error('Error generating FREE-BUSY:', error);
-      return { success: false, error: error.message };
+      console.error('Error stack:', error.stack);
+      return { 
+        success: false, 
+        error: error.message || 'An unexpected error occurred'
+      };
     }
   }
 });
