@@ -2,98 +2,39 @@ var { ExtensionCommon } = ChromeUtils.import("resource://gre/modules/ExtensionCo
 
 var calendar = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
-    // Helper function to get the calendar manager
-    const getCalendarManager = () => {
-      try {
-        // Try the new module first (Thunderbird 91+)
-        const { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
-        return cal.getCalendarManager();
-      } catch (e) {
-        try {
-          // Try alternative import path
-          const { cal } = ChromeUtils.import("resource://calendar/modules/calUtils.jsm");
-          return cal.getCalendarManager();
-        } catch (e2) {
-          // Try direct access
-          if (typeof cal !== 'undefined' && cal.getCalendarManager) {
-            return cal.getCalendarManager();
-          }
-          throw new Error("Could not access calendar manager. Calendar might not be installed or enabled.");
-        }
-      }
-    };
-
-    // Helper function to create date range (current time to one year from now)
-    const getDateRange = () => {
-      try {
-        const { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
-        const now = cal.dtz.now();
-        const oneYearFromNow = now.clone();
-        oneYearFromNow.year += 1;
-        return { start: now, end: oneYearFromNow };
-      } catch (e) {
-        // Fallback to JavaScript dates
-        const now = new Date();
-        const oneYearFromNow = new Date();
-        oneYearFromNow.setFullYear(now.getFullYear() + 1);
-        return { start: now, end: oneYearFromNow };
-      }
-    };
-
-    // Helper function to get events from a calendar
-    const getCalendarEvents = (calendar) => {
-      return new Promise((resolve, reject) => {
-        try {
-          const { start, end } = getDateRange();
-          const allEvents = [];
-          
-          const listener = {
-            onOperationComplete(aCalendar, aStatus, aOperationType, aId, aDetail) {
-              // Operation complete - resolve with all collected events
-              if (Components.isSuccessCode(aStatus)) {
-                console.log(`Calendar operation completed successfully for calendar: ${calendar.name}, events: ${allEvents.length}`);
-                resolve(allEvents);
-              } else {
-                console.error(`Calendar operation failed with status: ${aStatus} for calendar: ${calendar.name}`);
-                resolve([]); // Return empty array on error instead of rejecting
-              }
-            },
-            onGetResult(aCalendar, aStatus, aItemType, aDetail, aItems) {
-              // This can be called multiple times with batches of results
-              if (Components.isSuccessCode(aStatus)) {
-                console.log(`Received ${aItems.length} items from calendar: ${calendar.name}`);
-                const events = aItems.map(item => ({
-                  id: item.id,
-                  title: item.title || "",
-                  startDate: item.startDate ? item.startDate.icalString : "",
-                  endDate: item.endDate ? item.endDate.icalString : ""
-                }));
-                allEvents.push(...events);
-              }
-            }
-          };
-
-          calendar.getItems(
-            Ci.calICalendar.ITEM_FILTER_TYPE_EVENT,
-            0,
-            start,
-            end,
-            listener
-          );
-        } catch (error) {
-          console.error("Error calling getItems:", error, error.stack);
-          resolve([]); // Return empty array on error
-        }
-      });
-    };
-
     return {
       calendar: {
         async getCalendars() {
           try {
-            console.log("Getting calendar manager...");
-            const calManager = getCalendarManager();
-            console.log("Getting calendars...");
+            console.log("getCalendars: Getting calendar manager...");
+            
+            // Try to import calendar module and get manager
+            let calManager;
+            let importError;
+            
+            try {
+              const { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
+              console.log("Successfully imported calendar module from resource:///modules/calendar/calUtils.jsm");
+              calManager = cal.getCalendarManager();
+            } catch (e) {
+              importError = e;
+              console.error("Failed to import from resource:///modules/calendar/calUtils.jsm:", e.message);
+              
+              try {
+                const { cal } = ChromeUtils.import("resource://calendar/modules/calUtils.jsm");
+                console.log("Successfully imported calendar module from resource://calendar/modules/calUtils.jsm");
+                calManager = cal.getCalendarManager();
+              } catch (e2) {
+                console.error("Failed to import from resource://calendar/modules/calUtils.jsm:", e2.message);
+                throw new Error(`Could not import calendar module. Original error: ${importError.message}, Second attempt: ${e2.message}`);
+              }
+            }
+            
+            if (!calManager) {
+              throw new Error("Calendar manager is null or undefined");
+            }
+            
+            console.log("Getting calendars from manager...");
             const calendars = calManager.getCalendars();
             console.log(`Found ${calendars.length} calendar(s)`);
             
@@ -102,15 +43,18 @@ var calendar = class extends ExtensionCommon.ExtensionAPI {
               name: calendar.name
             }));
           } catch (error) {
-            console.error("Error getting calendars:", error, error.stack);
-            throw error;
+            console.error("Error in getCalendars:", error.message);
+            console.error("Error stack:", error.stack);
+            throw new Error(`Failed to get calendars: ${error.message}`);
           }
         },
 
         async getEvents(calendarId) {
           try {
-            console.log(`Getting events for calendar: ${calendarId}`);
-            const calManager = getCalendarManager();
+            console.log(`getEvents: Getting events for calendar: ${calendarId}`);
+            
+            const { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
+            const calManager = cal.getCalendarManager();
             const calendar = calManager.getCalendarById(calendarId);
             
             if (!calendar) {
@@ -118,17 +62,43 @@ var calendar = class extends ExtensionCommon.ExtensionAPI {
               return [];
             }
 
-            return await getCalendarEvents(calendar);
+            return await this._getCalendarEvents(calendar, cal);
           } catch (error) {
-            console.error("Error getting events:", error, error.stack);
-            throw error;
+            console.error(`Error in getEvents for ${calendarId}:`, error.message);
+            console.error("Error stack:", error.stack);
+            throw new Error(`Failed to get events: ${error.message}`);
           }
         },
 
         async getAllEvents() {
           try {
-            console.log("Getting calendar manager for getAllEvents...");
-            const calManager = getCalendarManager();
+            console.log("getAllEvents: Starting...");
+            
+            // Try to import calendar module
+            let cal, calManager;
+            try {
+              const calImport = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
+              cal = calImport.cal;
+              console.log("Successfully imported calendar module");
+            } catch (e) {
+              console.error("Failed to import calendar module:", e.message);
+              try {
+                const calImport = ChromeUtils.import("resource://calendar/modules/calUtils.jsm");
+                cal = calImport.cal;
+                console.log("Successfully imported calendar module from alternative path");
+              } catch (e2) {
+                console.error("Failed alternative import:", e2.message);
+                throw new Error(`Could not import calendar module: ${e.message}`);
+              }
+            }
+            
+            console.log("Getting calendar manager...");
+            calManager = cal.getCalendarManager();
+            
+            if (!calManager) {
+              throw new Error("Calendar manager is null");
+            }
+            
             console.log("Getting all calendars...");
             const calendars = calManager.getCalendars();
             
@@ -139,17 +109,80 @@ var calendar = class extends ExtensionCommon.ExtensionAPI {
             
             console.log(`Found ${calendars.length} calendar(s), fetching events...`);
             
-            // Fetch events from all calendars concurrently
-            const eventPromises = calendars.map(calendar => getCalendarEvents(calendar));
-            const allEventsArrays = await Promise.all(eventPromises);
-            const allEvents = allEventsArrays.flat();
+            // Get events from all calendars
+            const allEvents = [];
+            for (const calendar of calendars) {
+              try {
+                console.log(`Fetching events from calendar: ${calendar.name}`);
+                const events = await this._getCalendarEvents(calendar, cal);
+                console.log(`Got ${events.length} events from ${calendar.name}`);
+                allEvents.push(...events);
+              } catch (error) {
+                console.error(`Error fetching events from calendar ${calendar.name}:`, error.message);
+                // Continue with other calendars
+              }
+            }
             
-            console.log(`Retrieved ${allEvents.length} events from ${calendars.length} calendar(s)`);
+            console.log(`Retrieved ${allEvents.length} total events from ${calendars.length} calendar(s)`);
             return allEvents;
           } catch (error) {
-            console.error("Error getting all events:", error, error.stack);
-            throw error;
+            console.error("Error in getAllEvents:", error.message);
+            console.error("Error stack:", error.stack);
+            throw new Error(`Failed to get all events: ${error.message}`);
           }
+        },
+
+        // Helper method to get events from a single calendar
+        async _getCalendarEvents(calendar, cal) {
+          return new Promise((resolve, reject) => {
+            try {
+              console.log(`_getCalendarEvents: Starting for ${calendar.name}`);
+              
+              // Create date range
+              const now = cal.dtz.now();
+              const oneYearFromNow = now.clone();
+              oneYearFromNow.year += 1;
+              
+              const allEvents = [];
+              
+              const listener = {
+                onOperationComplete(aCalendar, aStatus, aOperationType, aId, aDetail) {
+                  if (Components.isSuccessCode(aStatus)) {
+                    console.log(`Operation completed for ${calendar.name}: ${allEvents.length} events`);
+                    resolve(allEvents);
+                  } else {
+                    console.error(`Operation failed for ${calendar.name} with status: ${aStatus}`);
+                    resolve([]); // Return empty array on error
+                  }
+                },
+                onGetResult(aCalendar, aStatus, aItemType, aDetail, aItems) {
+                  if (Components.isSuccessCode(aStatus)) {
+                    console.log(`Received ${aItems.length} items from ${calendar.name}`);
+                    const events = aItems.map(item => ({
+                      id: item.id,
+                      title: item.title || "",
+                      startDate: item.startDate ? item.startDate.icalString : "",
+                      endDate: item.endDate ? item.endDate.icalString : ""
+                    }));
+                    allEvents.push(...events);
+                  }
+                }
+              };
+
+              console.log(`Calling getItems for ${calendar.name}`);
+              calendar.getItems(
+                Ci.calICalendar.ITEM_FILTER_TYPE_EVENT,
+                0,
+                now,
+                oneYearFromNow,
+                listener
+              );
+            } catch (error) {
+              console.error(`Error in _getCalendarEvents for ${calendar.name}:`, error.message);
+              console.error("Error stack:", error.stack);
+              resolve([]); // Return empty array on error
+            }
+          });
         }
       }
     };
