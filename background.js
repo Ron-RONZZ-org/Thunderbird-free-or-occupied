@@ -52,12 +52,25 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       
       // Check if calendar API is available
       if (!browser.calendar) {
-        throw new Error('Calendar API not available. Please ensure the extension is properly installed.');
+        const errorMsg = 'Calendar API not available. Please ensure the extension is properly installed.';
+        console.error(errorMsg);
+        return { success: false, error: errorMsg };
       }
       
       // Get all calendar events using our experimental API
       console.log('Fetching calendar events...');
-      const allEvents = await browser.calendar.getAllEvents();
+      let allEvents;
+      try {
+        allEvents = await browser.calendar.getAllEvents();
+      } catch (calError) {
+        console.error('Calendar API error:', calError);
+        console.error('Calendar API error stack:', calError.stack);
+        return { 
+          success: false, 
+          error: `Failed to access calendar: ${calError.message || calError}`
+        };
+      }
+      
       console.log(`Retrieved ${allEvents.length} events`);
       
       // Get user email (fallback to default)
