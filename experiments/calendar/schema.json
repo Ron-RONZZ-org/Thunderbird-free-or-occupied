@@ -1,0 +1,88 @@
+[
+  {
+    "namespace": "calendar",
+    "functions": [
+      {
+        "name": "getCalendars",
+        "type": "function",
+        "description": "Get all calendars",
+        "async": true,
+        "parameters": [],
+        "returns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "getEvents",
+        "type": "function",
+        "description": "Get events from a calendar",
+        "async": true,
+        "parameters": [
+          {
+            "name": "calendarId",
+            "type": "string",
+            "description": "The calendar ID to get events from"
+          }
+        ],
+        "returns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "startDate": {
+                "type": "string"
+              },
+              "endDate": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "getAllEvents",
+        "type": "function",
+        "description": "Get all events from all calendars",
+        "async": true,
+        "parameters": [],
+        "returns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "startDate": {
+                "type": "string"
+              },
+              "endDate": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+]

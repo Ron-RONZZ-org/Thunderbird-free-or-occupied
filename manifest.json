@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "name": "Free or Occupied",
+  "version": "1.0.0",
+  "description": "Generate FREE-BUSY ICS files from your Thunderbird calendar",
+  "author": "Ron-RONZZ-org",
+  "applications": {
+    "gecko": {
+      "id": "free-or-occupied@thunderbird.net",
+      "strict_min_version": "78.0"
+    }
+  },
+  "permissions": [
+    "accountsRead"
+  ],
+  "experiment_apis": {
+    "calendar": {
+      "schema": "experiments/calendar/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["calendar"]],
+        "script": "experiments/calendar/implementation.js"
+      }
+    }
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Free or Occupied",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

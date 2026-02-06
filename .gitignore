@@ -1,0 +1,16 @@
+# Build artifacts
+*.xpi
+*.zip
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
