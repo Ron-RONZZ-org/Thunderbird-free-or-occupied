@@ -2,49 +2,48 @@ var { ExtensionCommon } = ChromeUtils.import("resource://gre/modules/ExtensionCo
 
 var calendar = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
-    // Safely get the calendar service
+    // Safely get the calendar service - tries different Thunderbird versions
     const getCalendarService = () => {
       try {
-        // For Thunderbird 102+, calendar is in a different location
         let cal;
         
-        // Try Thunderbird 102+ path first
-        try {
-          cal = ChromeUtils.import("resource:///modules/calendar/calUtils.sys.mjs").cal;
-          console.log("Loaded calendar from calUtils.sys.mjs");
-          return cal;
-        } catch (e) {
-          console.log("calUtils.sys.mjs not found:", e.message);
-        }
-        
-        // Try Thunderbird 91+ path
-        try {
-          cal = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm").cal;
-          console.log("Loaded calendar from calUtils.jsm");
-          return cal;
-        } catch (e) {
-          console.log("calUtils.jsm not found:", e.message);
-        }
-        
-        // Try older path
-        try {
-          cal = ChromeUtils.import("resource://calendar/modules/calUtils.jsm").cal;
-          console.log("Loaded calendar from resource://calendar/");
-          return cal;
-        } catch (e) {
-          console.log("resource://calendar/ not found:", e.message);
-        }
-        
-        // Try Thunderbird 115+ with ESM
+        // Try Thunderbird 115+ path with ESM loader
         try {
           cal = ChromeUtils.importESModule("resource:///modules/calendar/utils/calUtils.sys.mjs").cal;
-          console.log("Loaded calendar from ESM calUtils.sys.mjs");
+          console.log("✓ Loaded calendar from ESM: resource:///modules/calendar/utils/calUtils.sys.mjs");
           return cal;
         } catch (e) {
-          console.log("ESM calUtils.sys.mjs not found:", e.message);
+          console.log("✗ TB 115+ ESM path failed:", e.message);
         }
         
-        throw new Error("Could not load calendar module from any known path");
+        // Try Thunderbird 102+ path with ESM loader (.sys.mjs)
+        try {
+          cal = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs").cal;
+          console.log("✓ Loaded calendar from ESM: resource:///modules/calendar/calUtils.sys.mjs");
+          return cal;
+        } catch (e) {
+          console.log("✗ TB 102+ ESM path failed:", e.message);
+        }
+        
+        // Try Thunderbird 91+ path with JSM loader (.jsm)
+        try {
+          cal = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm").cal;
+          console.log("✓ Loaded calendar from JSM: resource:///modules/calendar/calUtils.jsm");
+          return cal;
+        } catch (e) {
+          console.log("✗ TB 91+ JSM path failed:", e.message);
+        }
+        
+        // Try legacy path with JSM loader
+        try {
+          cal = ChromeUtils.import("resource://calendar/modules/calUtils.jsm").cal;
+          console.log("✓ Loaded calendar from legacy path: resource://calendar/modules/calUtils.jsm");
+          return cal;
+        } catch (e) {
+          console.log("✗ Legacy calendar path failed:", e.message);
+        }
+        
+        throw new Error("Could not load calendar module from any known path (TB 78-115+). Calendar add-on may not be installed or enabled.");
       } catch (error) {
         console.error("Fatal error loading calendar service:", error);
         throw error;
